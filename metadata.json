@@ -1,0 +1,6 @@
+{
+  "name": "Camp Connect",
+  "description": "منصة تفاعلية متكاملة لتسهيل التواصل الفوري والآمن بين إدارة المخيم الصيفي وأولياء الأمور.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

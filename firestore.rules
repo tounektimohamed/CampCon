@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    function incoming(req) {
+      return req.resource.data;
+    }
+
+    function isNum(val) {
+      return val is int || val is float;
+    }
+
+    // Validation for CampSettings
+    function isValidCampSettings(data) {
+      return data.keys().hasAll(['photoAlbumUrl', 'dailyProgram', 'dietaryMenu', 'activities'])
+        && data.keys().size() == 4
+        && data.photoAlbumUrl is string
+        && data.photoAlbumUrl.size() <= 1024
+        && data.dailyProgram is string
+        && data.dailyProgram.size() <= 10000
+        && data.dietaryMenu is string
+        && data.dietaryMenu.size() <= 10000
+        && data.activities is string
+        && data.activities.size() <= 10000;
+    }
+
+    // Validation for AdminSecret
+    function isValidAdminSecret(data) {
+      return data.keys().hasAll(['secret'])
+        && data.keys().size() == 1
+        && data.secret is string
+        && data.secret.size() <= 128;
+    }
+
+    // Validation for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['id', 'parentName', 'childName', 'status', 'registeredAt'])
+        && data.keys().size() == 5
+        && data.id is string
+        && data.id.size() <= 256
+        && data.parentName is string
+        && data.parentName.size() <= 256
+        && data.childName is string
+        && data.childName.size() <= 256
+        && data.status is string
+        && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected')
+        && isNum(data.registeredAt);
+    }
+
+    // Validation for CampNotification
+    function isValidCampNotification(data) {
+      return data.keys().hasAll(['id', 'title', 'body', 'createdAt'])
+        && data.keys().size() == 4
+        && data.id is string
+        && data.id.size() <= 128
+        && data.title is string
+        && data.title.size() <= 256
+        && data.body is string
+        && data.body.size() <= 5000
+        && isNum(data.createdAt);
+    }
+
+    // Validation for AlbumPost
+    function isValidAlbumPost(data) {
+      return data.keys().hasAll(['id', 'albumName', 'albumUrl', 'createdAt', 'comments'])
+        && data.keys().size() == 5
+        && data.id is string
+        && data.id.size() <= 128
+        && data.albumName is string
+        && data.albumName.size() <= 256
+        && data.albumUrl is string
+        && data.albumUrl.size() <= 1024
+        && isNum(data.createdAt)
+        && data.comments is list;
+    }
+
+    // Match rules for collections
+    match /config/camp_settings {
+      allow read: if true;
+      allow create, update: if isValidCampSettings(incoming(request));
+    }
+
+    match /config/admin_secret {
+      allow read: if true;
+      allow create, update: if isValidAdminSecret(incoming(request));
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId) && isValidUserProfile(incoming(request));
+      allow delete: if isValidId(userId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if true;
+      allow create, update: if isValidId(notificationId) && isValidCampNotification(incoming(request));
+      allow delete: if isValidId(notificationId);
+    }
+
+    match /album_posts/{albumPostId} {
+      allow read: if true;
+      allow create, update: if isValidId(albumPostId) && isValidAlbumPost(incoming(request));
+      allow delete: if isValidId(albumPostId);
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "entities": {
+    "AdminSecret": {
+      "title": "AdminSecret",
+      "description": "Admin login secret/password",
+      "type": "object",
+      "properties": {
+        "secret": {
+          "type": "string",
+          "description": "The secret password for accessing the admin panel"
+        }
+      },
+      "required": ["secret"]
+    },
+    "CampSettings": {
+      "title": "CampSettings",
+      "description": "Camp settings and schedules",
+      "type": "object",
+      "properties": {
+        "photoAlbumUrl": {
+          "type": "string",
+          "description": "URL to the Google Photos album"
+        },
+        "dailyProgram": {
+          "type": "string",
+          "description": "Daily schedule of the camp"
+        },
+        "dietaryMenu": {
+          "type": "string",
+          "description": "Weekly food menu"
+        },
+        "activities": {
+          "type": "string",
+          "description": "Major activities and trips scheduled"
+        }
+      },
+      "required": ["photoAlbumUrl", "dailyProgram", "dietaryMenu", "activities"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile for a parent and their child",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user profile ID"
+        },
+        "parentName": {
+          "type": "string",
+          "description": "Full name of the parent"
+        },
+        "childName": {
+          "type": "string",
+          "description": "Full name of the child"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Approval status of the profile"
+        },
+        "registeredAt": {
+          "type": "number",
+          "description": "Registration timestamp"
+        }
+      },
+      "required": ["id", "parentName", "childName", "status", "registeredAt"]
+    },
+    "CampNotification": {
+      "title": "CampNotification",
+      "description": "Camp notification broadcasted to parents",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique notification ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Notification title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Notification body text"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "title", "body", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on an album post",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique comment ID"
+        },
+        "parentName": {
+          "type": "string",
+          "description": "Name of the parent commenting"
+        },
+        "childName": {
+          "type": "string",
+          "description": "Name of the child (empty if admin)"
+        },
+        "text": {
+          "type": "string",
+          "description": "Text content of the comment"
+        },
+        "isPrivate": {
+          "type": "boolean",
+          "description": "True if the comment is visible only to the author and admins"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Comment timestamp"
+        }
+      },
+      "required": ["id", "parentName", "childName", "text", "isPrivate", "createdAt"]
+    },
+    "AlbumPost": {
+      "title": "AlbumPost",
+      "description": "Album post with Google Photos link and comments",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique album post ID"
+        },
+        "albumName": {
+          "type": "string",
+          "description": "Title of the album"
+        },
+        "albumUrl": {
+          "type": "string",
+          "description": "Google Photos URL"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Post timestamp"
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/entities/Comment"
+          },
+          "description": "Comments left by parents and admins"
+        }
+      },
+      "required": ["id", "albumName", "albumUrl", "createdAt", "comments"]
+    }
+  },
+  "firestore": {
+    "config/camp_settings": {
+      "schema": "CampSettings",
+      "description": "Camp-wide schedule and settings"
+    },
+    "config/admin_secret": {
+      "schema": "AdminSecret",
+      "description": "Admin authentication secret"
+    },
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Registration profiles of parents"
+    },
+    "notifications/{notificationId}": {
+      "schema": "CampNotification",
+      "description": "Broadcast notifications"
+    },
+    "album_posts/{albumPostId}": {
+      "schema": "AlbumPost",
+      "description": "Interactive photo albums"
+    }
+  }
+}
