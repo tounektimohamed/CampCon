@@ -2,7 +2,11 @@ const CACHE_NAME = "camp-connect-cache-v1";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
-  "/manifest.json"
+  "/manifest.json",
+  "/logo_camp_512.png",
+  "/logo_camp_192.png",
+  "/logo_camp.png",
+  "/apple-touch-icon.png"
 ];
 
 // Install Event
