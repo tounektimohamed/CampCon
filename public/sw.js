@@ -1,19 +1,26 @@
 const CACHE_NAME = "camp-connect-cache-v1";
 const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/logo_camp_512.png",
-  "/logo_camp_192.png",
-  "/logo_camp.png",
-  "/apple-touch-icon.png"
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./logo_camp_512.png",
+  "./logo_camp_192.png",
+  "./logo_camp.png",
+  "./apple-touch-icon.png"
 ];
 
 // Install Event
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Robust individual asset caching so if any fails, the overall SW registration does not fail
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map((url) => {
+          return cache.add(url).catch((err) => {
+            console.warn(`[Service Worker] Failed to pre-cache: ${url}`, err);
+          });
+        })
+      );
     })
   );
   self.skipWaiting();
