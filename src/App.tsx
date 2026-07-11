@@ -6,6 +6,7 @@ import LoginScreen from "./components/LoginScreen";
 import PendingApprovalScreen from "./components/PendingApprovalScreen";
 import ParentsDashboard from "./components/ParentsDashboard";
 import AdminPanel from "./components/AdminPanel";
+import PwaInstallButton from "./components/PwaInstallButton";
 import { Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -129,6 +130,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <PwaInstallButton />
     </div>
   );
 }

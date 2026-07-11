@@ -1,0 +1,23 @@
+{
+  "short_name": "CampConnect",
+  "name": "Camp Connect | تواصل المخيم الصيفي",
+  "icons": [
+    {
+      "src": "logo_camp.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo_camp.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#fffbeb",
+  "theme_color": "#f59e0b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
