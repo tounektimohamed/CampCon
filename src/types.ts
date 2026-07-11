@@ -6,9 +6,10 @@ export interface CampSettings {
 }
 
 export interface UserProfile {
-  id: string; // parentname_childname
+  id: string; // parentname
   parentName: string;
   childName: string;
+  pin: string; // 5-digit PIN
   status: 'pending' | 'approved' | 'rejected';
   registeredAt: number;
 }

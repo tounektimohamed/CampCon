@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebase";
 import { UserProfile } from "../types";
-import { Shield, Sparkles, User, Baby, LogIn, ClipboardList, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Shield, Sparkles, User, Baby, LogIn, ClipboardList, AlertCircle, CheckCircle2, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 // @ts-ignore
 import campLogo from "../assets/images/camp_logo_1783717505873.jpg";
@@ -15,6 +15,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [activeTab, setActiveTab] = useState<"register" | "login">("register");
   const [parentName, setParentName] = useState("");
   const [childName, setChildName] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -24,10 +25,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [adminPin, setAdminPin] = useState("");
   const [adminError, setAdminError] = useState("");
 
-  const formatUserId = (pName: string, cName: string) => {
-    const cleanParent = pName.trim().toLowerCase().replace(/\s+/g, "_");
-    const cleanChild = cName.trim().toLowerCase().replace(/\s+/g, "_");
-    return `${cleanParent}_${cleanChild}`;
+  const formatUserId = (pName: string) => {
+    return pName.trim().toLowerCase().replace(/\s+/g, "_");
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -35,14 +34,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setError("");
     setSuccess("");
 
-    if (!parentName.trim() || !childName.trim()) {
+    if (!parentName.trim() || !childName.trim() || !pin.trim()) {
       setError("يرجى ملء جميع الحقول المطلوبة.");
+      return;
+    }
+
+    if (pin.length !== 5 || !/^\d{5}$/.test(pin)) {
+      setError("الرجاء إدخال رقم سري مكون من 5 أرقام بالضبط.");
       return;
     }
 
     setLoading(true);
     try {
-      const id = formatUserId(parentName, childName);
+      const id = formatUserId(parentName);
       const userRef = doc(db, "users", id);
       
       let userSnap;
@@ -50,11 +54,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         userSnap = await getDoc(userRef);
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, `users/${id}`);
+        setError("فشل التحقق من وجود الحساب في قاعدة البيانات.");
+        setLoading(false);
         return;
       }
 
       if (userSnap.exists()) {
-        setError("هذا الاسم مسجل لدينا بالفعل! يرجى الانتقال إلى تبويب 'الدخول السريع' لتسجيل الدخول.");
+        setError("اسم الولي هذا مسجل لدينا بالفعل! يرجى الانتقال إلى تبويب 'دخول سريع' لتسجيل الدخول.");
         setLoading(false);
         return;
       }
@@ -63,6 +69,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         id,
         parentName: parentName.trim(),
         childName: childName.trim(),
+        pin: pin.trim(),
         status: "pending",
         registeredAt: Date.now()
       };
@@ -71,6 +78,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         await setDoc(userRef, newUser);
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, `users/${id}`);
+        setError("فشل حفظ الحساب في قاعدة البيانات.");
+        setLoading(false);
         return;
       }
       
@@ -96,14 +105,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setError("");
     setSuccess("");
 
-    if (!parentName.trim() || !childName.trim()) {
+    if (!parentName.trim() || !pin.trim()) {
       setError("يرجى ملء جميع الحقول المطلوبة.");
+      return;
+    }
+
+    if (pin.length !== 5 || !/^\d{5}$/.test(pin)) {
+      setError("الرجاء إدخال رقم سري مكون من 5 أرقام بالضبط.");
       return;
     }
 
     setLoading(true);
     try {
-      const id = formatUserId(parentName, childName);
+      const id = formatUserId(parentName);
       const userRef = doc(db, "users", id);
       
       let userSnap;
@@ -111,16 +125,25 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         userSnap = await getDoc(userRef);
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, `users/${id}`);
+        setError("فشل التحقق من الحساب في قاعدة البيانات.");
+        setLoading(false);
         return;
       }
 
       if (!userSnap.exists()) {
-        setError("لم يتم العثور على هذا التسجيل. يرجى التحقق من صحة الأسماء المدخلة بدقة، أو التبديل لتبويب 'التسجيل الجديد'.");
+        setError("لم يتم العثور على هذا التسجيل. يرجى التحقق من صحة اسم الولي، أو التبديل لتبويب 'تسجيل ولي أمر جديد'.");
         setLoading(false);
         return;
       }
 
       const userProfile = userSnap.data() as UserProfile;
+      
+      if (userProfile.pin !== pin.trim()) {
+        setError("الرقم السري غير صحيح! يرجى المحاولة مجدداً.");
+        setLoading(false);
+        return;
+      }
+
       setSuccess("تم تسجيل الدخول بنجاح!");
       
       // Save session
@@ -270,7 +293,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         {/* Form Body */}
         <form onSubmit={activeTab === "register" ? handleRegister : handleLogin} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">اسم ولي الأمر كاملاً</label>
+            <label className="block text-xs font-bold text-slate-700 mb-2">اسم الولي</label>
             <div className="relative">
               <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400">
                 <User className="w-4 h-4" />
@@ -280,25 +303,55 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 required
                 value={parentName}
                 onChange={(e) => setParentName(e.target.value)}
-                placeholder="أبو أحمد الكندي"
+                placeholder="أحمد الكندي"
                 className="w-full pr-11 pl-4 py-3 text-sm bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all text-slate-800 font-medium"
               />
             </div>
           </div>
 
+          {activeTab === "register" && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <label className="block text-xs font-bold text-slate-700 mb-2">اسم المشارك</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400">
+                  <Baby className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  required={activeTab === "register"}
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                  placeholder="سليم أحمد الكندي"
+                  className="w-full pr-11 pl-4 py-3 text-sm bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all text-slate-800 font-medium"
+                />
+              </div>
+            </motion.div>
+          )}
+
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">اسم الطفل الثلاثي</label>
+            <label className="block text-xs font-bold text-slate-700 mb-2">رقم سري من خمسة أرقام</label>
             <div className="relative">
               <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400">
-                <Baby className="w-4 h-4" />
+                <Lock className="w-4 h-4" />
               </span>
               <input
-                type="text"
+                type="password"
                 required
-                value={childName}
-                onChange={(e) => setChildName(e.target.value)}
-                placeholder="أحمد محمد الكندي"
-                className="w-full pr-11 pl-4 py-3 text-sm bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all text-slate-800 font-medium"
+                maxLength={5}
+                inputMode="numeric"
+                pattern="\d{5}"
+                value={pin}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  if (val.length <= 5) setPin(val);
+                }}
+                placeholder="أدخل 5 أرقام (مثال: 12345)"
+                className="w-full pr-11 pl-4 py-3 text-sm bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all text-slate-800 font-medium tracking-widest"
               />
             </div>
           </div>

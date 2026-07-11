@@ -659,6 +659,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                           <tr>
                             <th className="px-6 py-4">ولي الأمر</th>
                             <th className="px-6 py-4">اسم الطالب</th>
+                            <th className="px-6 py-4">الرمز السري (PIN)</th>
                             <th className="px-6 py-4">الحالة</th>
                             <th className="px-6 py-4 text-center">التحكم والعمليات</th>
                           </tr>
@@ -671,6 +672,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                 <div className="text-[10px] text-slate-400 font-mono mt-0.5">{user.id}</div>
                               </td>
                               <td className="px-6 py-4 text-slate-800 font-semibold">{user.childName}</td>
+                              <td className="px-6 py-4 font-mono text-slate-600 font-bold">{user.pin || "—"}</td>
                               <td className="px-6 py-4">
                                 {user.status === "pending" && (
                                   <span className="bg-amber-100 text-amber-800 font-extrabold px-2.5 py-1 rounded-lg text-[10px]">قيد الانتظار</span>

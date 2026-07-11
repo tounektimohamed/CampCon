@@ -35,14 +35,16 @@ service cloud.firestore {
 
     // Validation for UserProfile
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['id', 'parentName', 'childName', 'status', 'registeredAt'])
-        && data.keys().size() == 5
+      return data.keys().hasAll(['id', 'parentName', 'childName', 'pin', 'status', 'registeredAt'])
+        && data.keys().size() == 6
         && data.id is string
         && data.id.size() <= 512
         && data.parentName is string
         && data.parentName.size() <= 512
         && data.childName is string
         && data.childName.size() <= 512
+        && data.pin is string
+        && data.pin.size() == 5
         && data.status is string
         && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected')
         && isNum(data.registeredAt);
