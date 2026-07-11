@@ -1,8 +1,9 @@
 services:
-  - type: static
+  - type: web
     name: camp-connect
+    env: static
     buildCommand: npm run build
-    publishPath: dist
+    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
