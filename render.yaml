@@ -1,7 +1,6 @@
 services:
-  - type: web
+  - type: static
     name: camp-connect
-    env: static
     buildCommand: npm run build
     publishPath: dist
     routes:
