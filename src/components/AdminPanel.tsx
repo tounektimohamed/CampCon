@@ -80,6 +80,105 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState<string>("");
 
+  // Custom Delete Target State
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "user" | "notification" | "album" | "comment" | null;
+    id: string;
+    secondaryId?: string;
+    title: string;
+    message: string;
+  }>({
+    type: null,
+    id: "",
+    title: "",
+    message: ""
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleExecuteDelete = async () => {
+    if (!deleteTarget.type) return;
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.type === "user") {
+        const userRef = doc(db, "users", deleteTarget.id);
+        try {
+          await deleteDoc(userRef);
+          showToast("تم حذف المستخدم نهائياً بنجاح! 🗑️", "success");
+        } catch (err) {
+          handleFirestoreError(err, OperationType.DELETE, `users/${deleteTarget.id}`);
+          showToast("حدث خطأ في قاعدة البيانات.", "error");
+        }
+      } else if (deleteTarget.type === "notification") {
+        try {
+          await deleteDoc(doc(db, "notifications", deleteTarget.id));
+          showToast("تم حذف الإشعار بنجاح! 🗑️", "success");
+        } catch (err) {
+          handleFirestoreError(err, OperationType.DELETE, `notifications/${deleteTarget.id}`);
+          showToast("حدث خطأ في قاعدة البيانات.", "error");
+        }
+      } else if (deleteTarget.type === "album") {
+        try {
+          await deleteDoc(doc(db, "album_posts", deleteTarget.id));
+          showToast("تم حذف منشور الألبوم بنجاح! 🗑️", "success");
+        } catch (err) {
+          handleFirestoreError(err, OperationType.DELETE, `album_posts/${deleteTarget.id}`);
+          showToast("حدث خطأ في قاعدة البيانات.", "error");
+        }
+      } else if (deleteTarget.type === "comment") {
+        const postId = deleteTarget.secondaryId;
+        const commentId = deleteTarget.id;
+        if (postId) {
+          const postRef = doc(db, "album_posts", postId);
+          let postSnap;
+          try {
+            postSnap = await getDoc(postRef);
+          } catch (err) {
+            handleFirestoreError(err, OperationType.GET, `album_posts/${postId}`);
+            showToast("فشل جلب الألبوم من قاعدة البيانات.", "error");
+            setIsDeleting(false);
+            setDeleteTarget({ type: null, id: "", title: "", message: "" });
+            return;
+          }
+          if (postSnap.exists()) {
+            const post = postSnap.data() as AlbumPost;
+            const updatedComments = (post.comments || []).filter(c => c.id !== commentId);
+            try {
+              await updateDoc(postRef, { comments: updatedComments });
+              showToast("تم حذف التعليق بنجاح! 🗑️", "success");
+            } catch (err) {
+              handleFirestoreError(err, OperationType.UPDATE, `album_posts/${postId}`);
+              showToast("فشل تحديث التعليقات في قاعدة البيانات.", "error");
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error executing delete:", error);
+      showToast("حدث خطأ أثناء عملية الحذف.", "error");
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget({ type: null, id: "", title: "", message: "" });
+    }
+  };
+
+  // Custom Toast State
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    message: "",
+    type: "success"
+  });
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   // Fetch / Subscribe to all data
   useEffect(() => {
     // 1. Subscribe to Users
@@ -139,29 +238,24 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
       const userRef = doc(db, "users", userId);
       try {
         await updateDoc(userRef, { status: newStatus });
+        showToast("تم تحديث حالة العضو بنجاح! 🎉", "success");
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+        showToast("حدث خطأ في تحديث قاعدة البيانات.", "error");
       }
     } catch (error) {
       console.error("Error updating user status:", error);
-      alert("تعذر تحديث حالة المستخدم. يرجى المحاولة لاحقاً.");
+      showToast("تعذر تحديث حالة المستخدم. يرجى المحاولة لاحقاً.", "error");
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا المستخدم نهائياً من قاعدة البيانات؟")) return;
-    try {
-      const userRef = doc(db, "users", userId);
-      try {
-        await deleteDoc(userRef);
-        alert("تم حذف المستخدم نهائياً بنجاح! 🗑️");
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
-      }
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      alert("تعذر حذف المستخدم.");
-    }
+  const handleDeleteUser = (userId: string) => {
+    setDeleteTarget({
+      type: "user",
+      id: userId,
+      title: "حذف المستخدم نهائياً",
+      message: "هل أنت متأكد من حذف هذا المستخدم نهائياً من قاعدة البيانات؟"
+    });
   };
 
   // Action: Save Camp Settings
@@ -179,14 +273,15 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
           dietaryMenu: dietaryMenu.trim(),
           activities: activities.trim()
         });
+        setSettingsSuccess("تم حفظ وتحديث الإعدادات بنجاح، وستنعكس فوراً لدى جميع الأهالي!");
+        setTimeout(() => setSettingsSuccess(""), 4000);
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, "config/camp_settings");
+        showToast("حدث خطأ أثناء حفظ الإعدادات.", "error");
       }
-      setSettingsSuccess("تم حفظ وتحديث الإعدادات بنجاح، وستنعكس فوراً لدى جميع الأهالي!");
-      setTimeout(() => setSettingsSuccess(""), 4000);
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert("تعذر حفظ التغييرات.");
+      showToast("تعذر حفظ التغييرات.", "error");
     } finally {
       setIsSavingSettings(false);
     }
@@ -206,13 +301,14 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             title: notifTitle.trim(),
             body: notifBody.trim()
           });
+          showToast("تم تحديث وتعديل الإشعار بنجاح! 🔔", "success");
         } catch (err) {
           handleFirestoreError(err, OperationType.UPDATE, `notifications/${editingNotifId}`);
+          showToast("فشل تحديث الإشعار في قاعدة البيانات.", "error");
         }
         setEditingNotifId(null);
         setNotifTitle("");
         setNotifBody("");
-        alert("تم تحديث وتعديل الإشعار بنجاح! 🔔");
       } else {
         const id = `notif_${Date.now()}`;
         const notifRef = doc(db, "notifications", id);
@@ -223,16 +319,17 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             body: notifBody.trim(),
             createdAt: Date.now()
           });
+          showToast("تم إرسال ونشر الإشعار العاجل لجميع الأهالي بنجاح! 🔔", "success");
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, `notifications/${id}`);
+          showToast("فشل إرسال الإشعار في قاعدة البيانات.", "error");
         }
         setNotifTitle("");
         setNotifBody("");
-        alert("تم إرسال ونشر الإشعار العاجل لجميع الأهالي بنجاح! 🔔");
       }
     } catch (error) {
       console.error("Error saving/sending notification:", error);
-      alert("حدث خطأ أثناء حفظ أو إرسال الإشعار.");
+      showToast("حدث خطأ أثناء حفظ أو إرسال الإشعار.", "error");
     } finally {
       setIsSendingNotif(false);
     }
@@ -242,7 +339,6 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     setEditingNotifId(notif.id);
     setNotifTitle(notif.title);
     setNotifBody(notif.body);
-    // Automatically focus or scroll to the broadcast tab/form if needed
   };
 
   const handleCancelEditNotification = () => {
@@ -251,19 +347,13 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     setNotifBody("");
   };
 
-  const handleDeleteNotification = async (notifId: string) => {
-    if (!window.confirm("هل تريد حذف هذا الإشعار؟")) return;
-    try {
-      try {
-        await deleteDoc(doc(db, "notifications", notifId));
-        alert("تم حذف الإشعار بنجاح! 🗑️");
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `notifications/${notifId}`);
-      }
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      alert("حدث خطأ أثناء حذف الإشعار. يرجى مراجعة الاتصال بقاعدة البيانات.");
-    }
+  const handleDeleteNotification = (notifId: string) => {
+    setDeleteTarget({
+      type: "notification",
+      id: notifId,
+      title: "حذف الإشعار",
+      message: "هل تريد حذف هذا الإشعار؟"
+    });
   };
 
   // Action: Create/Edit Album Post
@@ -280,13 +370,14 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             albumName: albumName.trim(),
             albumUrl: albumUrl.trim()
           });
+          showToast("تم تحديث وتعديل منشور الألبوم بنجاح! 📸", "success");
         } catch (err) {
           handleFirestoreError(err, OperationType.UPDATE, `album_posts/${editingAlbumId}`);
+          showToast("حدث خطأ في قاعدة البيانات.", "error");
         }
         setEditingAlbumId(null);
         setAlbumName("");
         setAlbumUrl("");
-        alert("تم تحديث وتعديل منشور الألبوم بنجاح! 📸");
       } else {
         const id = `album_${Date.now()}`;
         const albumRef = doc(db, "album_posts", id);
@@ -299,16 +390,17 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         };
         try {
           await setDoc(albumRef, newAlbum);
+          showToast("تم إنشاء المنشور وإضافته للتغذية التفاعلية بنجاح! 📸", "success");
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, `album_posts/${id}`);
+          showToast("حدث خطأ في قاعدة البيانات.", "error");
         }
         setAlbumName("");
         setAlbumUrl("");
-        alert("تم إنشاء المنشور وإضافته للتغذية التفاعلية بنجاح! 📸");
       }
     } catch (error) {
       console.error("Error creating/saving album post:", error);
-      alert("حدث خطأ أثناء حفظ أو إنشاء منشور الألبوم.");
+      showToast("حدث خطأ أثناء حفظ أو إنشاء منشور الألبوم.", "error");
     } finally {
       setIsCreatingAlbum(false);
     }
@@ -326,19 +418,13 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     setAlbumUrl("");
   };
 
-  const handleDeleteAlbum = async (albumId: string) => {
-    if (!window.confirm("هل تريد إزالة هذا الألبوم وحذف جميع تعليقاته نهائياً؟")) return;
-    try {
-      try {
-        await deleteDoc(doc(db, "album_posts", albumId));
-        alert("تم حذف منشور الألبوم بنجاح! 🗑️");
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `album_posts/${albumId}`);
-      }
-    } catch (error) {
-      console.error("Error deleting album:", error);
-      alert("حدث خطأ أثناء حذف منشور الألبوم. يرجى التحقق من اتصال قاعدة البيانات.");
-    }
+  const handleDeleteAlbum = (albumId: string) => {
+    setDeleteTarget({
+      type: "album",
+      id: albumId,
+      title: "إزالة الألبوم",
+      message: "هل تريد إزالة هذا الألبوم وحذف جميع تعليقاته نهائياً؟"
+    });
   };
 
   // Action: Admin Comment / Reply on Album Posts
@@ -351,9 +437,9 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
       const newComment: Comment = {
         id: `comment_${Date.now()}_admin`,
         parentName: "إدارة المخيم",
-        childName: "", // empty because it is from administrator
+        childName: "",
         text: text.trim(),
-        isPrivate: false, // Admin comments are always visible to those who can see the thread
+        isPrivate: false,
         createdAt: Date.now()
       };
 
@@ -362,44 +448,29 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         await updateDoc(postRef, {
           comments: arrayUnion(newComment)
         });
+        showToast("تم إضافة تعليق الإدارة بنجاح! 💬", "success");
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `album_posts/${postId}`);
+        showToast("فشل تحديث التعليق في قاعدة البيانات.", "error");
       }
 
       setReplyInputs(prev => ({ ...prev, [postId]: "" }));
     } catch (error) {
       console.error("Error sending admin comment:", error);
-      alert("حدث خطأ أثناء الإرسال.");
+      showToast("حدث خطأ أثناء الإرسال.", "error");
     } finally {
       setIsReplying(prev => ({ ...prev, [postId]: false }));
     }
   };
 
-  const handleDeleteComment = async (postId: string, commentId: string) => {
-    if (!window.confirm("هل أنت متأكد من رغبتك في حذف تعليق هذا العضو؟")) return;
-    try {
-      const postRef = doc(db, "album_posts", postId);
-      let postSnap;
-      try {
-        postSnap = await getDoc(postRef);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, `album_posts/${postId}`);
-        return;
-      }
-      if (postSnap.exists()) {
-        const post = postSnap.data() as AlbumPost;
-        const updatedComments = (post.comments || []).filter(c => c.id !== commentId);
-        try {
-          await updateDoc(postRef, { comments: updatedComments });
-          alert("تم حذف التعليق بنجاح! 🗑️");
-        } catch (err) {
-          handleFirestoreError(err, OperationType.UPDATE, `album_posts/${postId}`);
-        }
-      }
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      alert("حدث خطأ أثناء حذف التعليق.");
-    }
+  const handleDeleteComment = (postId: string, commentId: string) => {
+    setDeleteTarget({
+      type: "comment",
+      id: commentId,
+      secondaryId: postId,
+      title: "حذف تعليق",
+      message: "هل أنت متأكد من رغبتك في حذف تعليق هذا العضو؟"
+    });
   };
 
   const handleStartEditComment = (postId: string, comment: Comment) => {
@@ -417,6 +488,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         postSnap = await getDoc(postRef);
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, `album_posts/${postId}`);
+        showToast("فشل جلب الألبوم من قاعدة البيانات.", "error");
         return;
       }
       if (postSnap.exists()) {
@@ -429,17 +501,18 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         });
         try {
           await updateDoc(postRef, { comments: updatedComments });
+          showToast("تم تعديل التعليق بنجاح! ✏️", "success");
         } catch (err) {
           handleFirestoreError(err, OperationType.UPDATE, `album_posts/${postId}`);
+          showToast("فشل حفظ التعديل في قاعدة البيانات.", "error");
         }
         setEditingCommentPostId(null);
         setEditingCommentId(null);
         setEditingCommentText("");
-        alert("تم تعديل التعليق بنجاح! ✏️");
       }
     } catch (error) {
       console.error("Error editing comment:", error);
-      alert("حدث خطأ أثناء تعديل التعليق.");
+      showToast("حدث خطأ أثناء تعديل التعليق.", "error");
     }
   };
 
@@ -1126,6 +1199,94 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <AnimatePresence>
+        {deleteTarget.type && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isDeleting) setDeleteTarget({ type: null, id: "", title: "", message: "" });
+              }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            {/* Dialog Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 shadow-xl max-w-md w-full relative z-10 border border-slate-100 flex flex-col gap-4 text-right"
+              dir="rtl"
+            >
+              <div className="flex items-center gap-3 text-amber-600 border-b border-slate-50 pb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-5 h-5 text-amber-600" />
+                </div>
+                <h3 className="text-base font-black text-slate-800">{deleteTarget.title}</h3>
+              </div>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                {deleteTarget.message}
+              </p>
+              <div className="flex gap-2 justify-end mt-2">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteTarget({ type: null, id: "", title: "", message: "" })}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleExecuteDelete}
+                  className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-rose-500/10 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <span>تأكيد الحذف</span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Toast Alerts */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 50, x: "-50%" }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3.5 rounded-2xl shadow-lg border text-xs font-bold flex items-center gap-2.5 min-w-[300px] justify-between ${
+              toast.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
+            }`}
+            dir="rtl"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {toast.type === "success" ? "✨" : "⚠️"}
+              </span>
+              <p>{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(prev => ({ ...prev, show: false }))}
+              className="p-1 hover:bg-slate-200/50 rounded-lg transition-colors text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
