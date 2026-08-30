@@ -1,20 +1,48 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+
+<h1>CampCon 🏕️</h1>
+
+**CampCon** is a TypeScript web application for camp organization and coordination.
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black)
+
 </div>
 
-# Run and deploy your AI Studio app
+---
+## 📖 Overview
 
-This contains everything you need to run your app locally.
+**CampCon** is a TypeScript web application for camp organization and coordination.
 
-View your app in AI Studio: https://ai.studio/apps/e5a36237-62c8-4d39-8f94-51d1c56f1089
+## ✨ Features
 
-## Run Locally
+- Camp planning workflows
+- Responsive UI
+- Firebase-ready
 
-**Prerequisites:**  Node.js
 
+## 🛠 Tech Stack
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+TypeScript, Vite, Firebase.
+
+## 🚀 Getting Started
+
+```bash
+git clone <repo-url>
+cd <repo>
+npm install
+npm run dev
+```
+
+> Open the dev server URL printed in your terminal.
+
+## 📬 Contact
+
+- **Email:** tounekti17@gmail.com
+- **LinkedIn:** [tounekti-mohamed](https://www.linkedin.com/in/tounekti-mohamed-b38935213/)
+- **GitHub:** [tounektimohamed](https://github.com/tounektimohamed)
+
+---
+
+<div align="center">Built with ❤️ by **Mohamed Tounekti**</div>
